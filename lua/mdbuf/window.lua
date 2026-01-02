@@ -73,7 +73,7 @@ function M.update_image(image_path, source_map)
   -- Clear existing content
   vim.api.nvim_buf_set_lines(M.preview_buf, 0, -1, false, {})
 
-  -- Check if image.nvim is available
+  -- Check if image.nvim is available and setup
   local ok, image = pcall(require, 'image')
   if not ok then
     vim.notify('[mdbuf] image.nvim not found. Install 3rd/image.nvim for image display.', vim.log.levels.WARN)
@@ -86,8 +86,27 @@ function M.update_image(image_path, source_map)
     return
   end
 
-  -- Display image using image.nvim
-  local img = image.from_file(image_path, {
+  -- Check if image.nvim is properly setup
+  local ok_setup, has_get_images = pcall(function()
+    -- image.nvim stores setup state internally, try a safe operation
+    return image.get_images and type(image.get_images) == 'function'
+  end)
+
+  local is_setup = ok_setup and has_get_images
+
+  if not is_setup then
+    vim.notify('[mdbuf] image.nvim is not setup. Call require("image").setup() first.', vim.log.levels.WARN)
+    vim.api.nvim_buf_set_lines(M.preview_buf, 0, -1, false, {
+      'Preview rendered to: ' .. image_path,
+      '',
+      'image.nvim needs to be setup first:',
+      'require("image").setup()',
+    })
+    return
+  end
+
+  -- Display image using image.nvim (with pcall for safety)
+  local img_ok, img = pcall(image.from_file, image_path, {
     buffer = M.preview_buf,
     window = M.preview_win,
     x = 0,
@@ -95,10 +114,16 @@ function M.update_image(image_path, source_map)
     width = vim.api.nvim_win_get_width(M.preview_win),
   })
 
-  if img then
+  if img_ok and img then
     img:render()
   else
-    vim.notify('[mdbuf] Failed to load image: ' .. image_path, vim.log.levels.ERROR)
+    local err_msg = img_ok and 'unknown error' or tostring(img)
+    vim.notify('[mdbuf] Failed to load image: ' .. err_msg, vim.log.levels.ERROR)
+    vim.api.nvim_buf_set_lines(M.preview_buf, 0, -1, false, {
+      'Preview rendered to: ' .. image_path,
+      '',
+      'Error loading image: ' .. err_msg,
+    })
   end
 end
 
@@ -106,6 +131,10 @@ end
 ---@param source_line number
 function M.sync_scroll(source_line)
   if not M.preview_win or not vim.api.nvim_win_is_valid(M.preview_win) then
+    return
+  end
+
+  if not M.preview_buf or not vim.api.nvim_buf_is_valid(M.preview_buf) then
     return
   end
 
@@ -135,7 +164,12 @@ function M.sync_scroll(source_line)
     local scroll_ratio = target_y / total_height
     local scroll_line = math.floor(scroll_ratio * win_height)
 
-    vim.api.nvim_win_set_cursor(M.preview_win, { math.max(1, scroll_line), 0 })
+    -- Ensure cursor position is within buffer bounds
+    local buf_line_count = vim.api.nvim_buf_line_count(M.preview_buf)
+    if buf_line_count > 0 then
+      local safe_line = math.max(1, math.min(scroll_line, buf_line_count))
+      pcall(vim.api.nvim_win_set_cursor, M.preview_win, { safe_line, 0 })
+    end
   end
 end
 
