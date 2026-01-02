@@ -6,20 +6,20 @@ let currentLine = 1;
 /**
  * Reset line counter before parsing
  */
-function resetLineCounter(): void {
+const resetLineCounter = (): void => {
   currentLine = 1;
-}
+};
 
 /**
  * Get line number from token if available, otherwise use tracked line
  */
-function getLineNumber(token: { raw?: string }): number {
+const getLineNumber = (token: { raw?: string }): number => {
   const line = currentLine;
   if (token.raw) {
     currentLine += token.raw.split('\n').length - 1;
   }
   return line;
-}
+};
 
 // Configure marked with custom renderer
 marked.use({
@@ -110,18 +110,18 @@ marked.use({
 /**
  * Convert markdown to HTML with source line annotations
  */
-export function markdownToHtml(markdown: string): string {
+export const markdownToHtml = (markdown: string): string => {
   resetLineCounter();
   return marked.parse(markdown) as string;
-}
+};
 
 /**
  * Generate full HTML document with styling
  */
-export function generateHtmlDocument(
+export const generateHtmlDocument = (
   body: string,
   options: { width: number; theme: 'light' | 'dark'; customCss?: string }
-): string {
+): string => {
   const { width, theme, customCss } = options;
 
   const baseStyles = `
@@ -236,4 +236,4 @@ ${body}
 ${mermaidScript}
 </body>
 </html>`;
-}
+};

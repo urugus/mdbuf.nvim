@@ -137,17 +137,17 @@ export class Renderer {
 // Singleton instance for reuse
 let rendererInstance: Renderer | null = null;
 
-export async function getRenderer(): Promise<Renderer> {
+export const getRenderer = async (): Promise<Renderer> => {
   if (!rendererInstance) {
     rendererInstance = new Renderer();
     await rendererInstance.init();
   }
   return rendererInstance;
-}
+};
 
-export async function closeRenderer(): Promise<void> {
+export const closeRenderer = async (): Promise<void> => {
   if (rendererInstance) {
     await rendererInstance.close();
     rendererInstance = null;
   }
-}
+};

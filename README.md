@@ -132,6 +132,18 @@ cd server
 npm run render -- README.md output.png
 ```
 
+### Server unit tests (Vitest)
+
+```bash
+cd server
+npm run test
+```
+
+```bash
+cd server
+npm run test:watch
+```
+
 ## License
 
 MIT

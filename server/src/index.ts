@@ -1,7 +1,7 @@
 import { closeRenderer, getRenderer } from './renderer.js';
 import { createRpcServer } from './rpc.js';
 
-async function main(): Promise<void> {
+const main = async (): Promise<void> => {
   // Initialize renderer
   console.error('[mdbuf-server] Initializing Playwright renderer...');
   const renderer = await getRenderer();
@@ -24,7 +24,7 @@ async function main(): Promise<void> {
 
   // Start server
   server.listen();
-}
+};
 
 main().catch((error) => {
   console.error('[mdbuf-server] Fatal error:', error);
