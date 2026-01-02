@@ -83,8 +83,8 @@ export const createRpcProcessor = (
           break;
 
         case 'shutdown':
-          await methods.shutdown();
           sendResponse(createSuccessResponse(request.id, {}));
+          await methods.shutdown();
           exit(0);
           return;
 
