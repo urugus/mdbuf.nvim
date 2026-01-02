@@ -86,6 +86,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Lua build dependencies
+        run: sudo apt-get update && sudo apt-get install -y libreadline-dev libncurses-dev
+
       - name: Setup Lua
         uses: leafo/gh-actions-lua@v10
         with:
@@ -93,6 +96,12 @@ jobs:
 
       - name: Setup LuaRocks
         uses: leafo/gh-actions-luarocks@v4
+
+      - name: Cache luarocks
+        uses: actions/cache@v4
+        with:
+          path: ~/.luarocks
+          key: luarocks-luacheck-${{ runner.os }}
 
       - name: Install luacheck
         run: luarocks install luacheck
