@@ -87,10 +87,12 @@ function M.update_image(image_path, source_map)
   end
 
   -- Check if image.nvim is properly setup
-  local is_setup = pcall(function()
+  local ok_setup, has_get_images = pcall(function()
     -- image.nvim stores setup state internally, try a safe operation
     return image.get_images and type(image.get_images) == 'function'
   end)
+
+  local is_setup = ok_setup and has_get_images == true
 
   if not is_setup then
     vim.notify('[mdbuf] image.nvim is not setup. Call require("image").setup() first.', vim.log.levels.WARN)
@@ -115,7 +117,7 @@ function M.update_image(image_path, source_map)
   if img_ok and img then
     img:render()
   else
-    local err_msg = not img_ok and tostring(img) or 'unknown error'
+    local err_msg = img_ok and 'unknown error' or tostring(img)
     vim.notify('[mdbuf] Failed to load image: ' .. err_msg, vim.log.levels.ERROR)
     vim.api.nvim_buf_set_lines(M.preview_buf, 0, -1, false, {
       'Preview rendered to: ' .. image_path,
