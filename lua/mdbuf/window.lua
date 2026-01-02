@@ -92,7 +92,7 @@ function M.update_image(image_path, source_map)
     return image.get_images and type(image.get_images) == 'function'
   end)
 
-  local is_setup = ok_setup and has_get_images == true
+  local is_setup = ok_setup and has_get_images
 
   if not is_setup then
     vim.notify('[mdbuf] image.nvim is not setup. Call require("image").setup() first.', vim.log.levels.WARN)
