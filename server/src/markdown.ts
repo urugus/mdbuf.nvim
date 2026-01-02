@@ -120,9 +120,9 @@ export const markdownToHtml = (markdown: string): string => {
  */
 export const generateHtmlDocument = (
   body: string,
-  options: { width: number; theme: 'light' | 'dark'; customCss?: string }
+  options: { width: number; theme: 'light' | 'dark'; customCss?: string; enableMermaid?: boolean }
 ): string => {
-  const { width, theme, customCss } = options;
+  const { width, theme, customCss, enableMermaid = true } = options;
 
   const baseStyles = `
     * {
@@ -211,8 +211,8 @@ export const generateHtmlDocument = (
     }
   `;
 
-  // Mermaid script for diagram rendering
-  const mermaidScript = `
+  const mermaidScript = enableMermaid
+    ? `
     <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
     <script>
       mermaid.initialize({
@@ -221,7 +221,8 @@ export const generateHtmlDocument = (
         securityLevel: 'loose',
       });
     </script>
-  `;
+  `
+    : '';
 
   return `<!DOCTYPE html>
 <html>

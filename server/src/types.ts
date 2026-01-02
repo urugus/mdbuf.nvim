@@ -31,6 +31,7 @@ export interface RenderParams {
   options?: {
     css?: string;
     theme?: 'light' | 'dark';
+    sourceMap?: boolean;
   };
 }
 
