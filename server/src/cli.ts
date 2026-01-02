@@ -8,7 +8,7 @@ import { copyFile, readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { closeRenderer, getRenderer } from './renderer.js';
 
-async function main(): Promise<void> {
+const main = async (): Promise<void> => {
   const args = process.argv.slice(2);
 
   if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
@@ -99,6 +99,6 @@ Examples:
     await closeRenderer();
     process.exit(1);
   }
-}
+};
 
 main();

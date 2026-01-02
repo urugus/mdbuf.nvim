@@ -45,6 +45,7 @@ function M.render(buf, callback)
     options = {
       theme = opts.theme,
       css = opts.custom_css and vim.fn.readfile(opts.custom_css) or nil,
+      sourceMap = config.options.behavior.sync_scroll,
     },
   }
 

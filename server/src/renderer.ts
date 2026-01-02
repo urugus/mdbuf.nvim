@@ -42,15 +42,24 @@ export class Renderer {
     }
 
     const startTime = performance.now();
+    const generateSourceMap = params.options?.sourceMap !== false;
+
+    // Set viewport early to avoid relayout after content is set
+    await this.page.setViewportSize({
+      width: params.viewport.width,
+      height: 800, // Initial height, will expand for full page screenshot
+    });
 
     // Convert markdown to HTML
     const htmlBody = markdownToHtml(params.markdown);
+    const hasMermaid = htmlBody.includes('class="mermaid"');
 
     // Generate full HTML document
     const html = generateHtmlDocument(htmlBody, {
       width: params.viewport.width,
       theme: params.options?.theme || 'light',
       customCss: params.options?.css,
+      enableMermaid: hasMermaid,
     });
 
     // Set page content and wait for Mermaid to render
@@ -69,14 +78,10 @@ export class Renderer {
       });
     });
 
-    // Set viewport
-    await this.page.setViewportSize({
-      width: params.viewport.width,
-      height: 800, // Initial height, will expand for full page
-    });
-
-    // Generate source map
-    const sourceMap = await this.generateSourceMap();
+    // Generate source map (optional; can be expensive on large docs)
+    const sourceMap = generateSourceMap
+      ? await this.generateSourceMap()
+      : { lineToY: {}, totalHeight: await this.page.evaluate(() => document.body.scrollHeight) };
 
     // Take screenshot
     const imagePath = await this.takeScreenshot();
@@ -137,17 +142,17 @@ export class Renderer {
 // Singleton instance for reuse
 let rendererInstance: Renderer | null = null;
 
-export async function getRenderer(): Promise<Renderer> {
+export const getRenderer = async (): Promise<Renderer> => {
   if (!rendererInstance) {
     rendererInstance = new Renderer();
     await rendererInstance.init();
   }
   return rendererInstance;
-}
+};
 
-export async function closeRenderer(): Promise<void> {
+export const closeRenderer = async (): Promise<void> => {
   if (rendererInstance) {
     await rendererInstance.close();
     rendererInstance = null;
   }
-}
+};

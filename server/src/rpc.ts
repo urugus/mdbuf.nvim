@@ -1,12 +1,12 @@
 import { createInterface } from 'node:readline';
 import type { JsonRpcError, JsonRpcRequest, JsonRpcResponse, RpcMethods } from './types.js';
 
-const VERSION = '0.1.0';
+export const VERSION = '0.1.0';
 
 /**
  * JSON-RPC 2.0 error codes
  */
-const ErrorCodes = {
+export const ErrorCodes = {
   PARSE_ERROR: -32700,
   INVALID_REQUEST: -32600,
   METHOD_NOT_FOUND: -32601,
@@ -17,46 +17,36 @@ const ErrorCodes = {
 /**
  * Create a JSON-RPC error response
  */
-function createErrorResponse(
+const createErrorResponse = (
   id: number | string | null,
   code: number,
   message: string,
   data?: unknown
-): JsonRpcResponse {
+): JsonRpcResponse => {
   return {
     jsonrpc: '2.0',
     id: id ?? 0,
     error: { code, message, data },
   };
-}
+};
 
 /**
  * Create a JSON-RPC success response
  */
-function createSuccessResponse(id: number | string, result: unknown): JsonRpcResponse {
+const createSuccessResponse = (id: number | string, result: unknown): JsonRpcResponse => {
   return {
     jsonrpc: '2.0',
     id,
     result,
   };
-}
+};
 
-/**
- * Create and start JSON-RPC server over stdio
- */
-export function createRpcServer(methods: RpcMethods) {
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    terminal: false,
-  });
-
-  function sendResponse(response: JsonRpcResponse): void {
-    const json = JSON.stringify(response);
-    process.stdout.write(`${json}\n`);
-  }
-
-  async function handleRequest(line: string): Promise<void> {
+export const createRpcProcessor = (
+  methods: RpcMethods,
+  sendResponse: (response: JsonRpcResponse) => void,
+  exit: (code?: number) => never = process.exit
+): { handleRequest: (line: string) => Promise<void> } => {
+  const handleRequest = async (line: string): Promise<void> => {
     let request: JsonRpcRequest;
 
     // Parse JSON
@@ -89,13 +79,14 @@ export function createRpcServer(methods: RpcMethods) {
           break;
 
         case 'ping':
-          result = { status: 'ok', version: VERSION };
+          result = methods.ping();
           break;
 
         case 'shutdown':
           sendResponse(createSuccessResponse(request.id, {}));
-          process.exit(0);
-          break; // unreachable but satisfies linter
+          await methods.shutdown();
+          exit(0);
+          return;
 
         default:
           sendResponse(
@@ -113,10 +104,30 @@ export function createRpcServer(methods: RpcMethods) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       sendResponse(createErrorResponse(request.id, ErrorCodes.INTERNAL_ERROR, message));
     }
-  }
+  };
+
+  return { handleRequest };
+};
+
+/**
+ * Create and start JSON-RPC server over stdio
+ */
+export const createRpcServer = (methods: RpcMethods) => {
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    terminal: false,
+  });
+
+  const sendResponse = (response: JsonRpcResponse): void => {
+    const json = JSON.stringify(response);
+    process.stdout.write(`${json}\n`);
+  };
+
+  const { handleRequest } = createRpcProcessor(methods, sendResponse);
 
   return {
-    listen(): void {
+    listen: (): void => {
       // Log to stderr so it doesn't interfere with JSON-RPC
       console.error(`[mdbuf-server] Starting JSON-RPC server v${VERSION}`);
 
@@ -145,4 +156,4 @@ export function createRpcServer(methods: RpcMethods) {
       });
     },
   };
-}
+};

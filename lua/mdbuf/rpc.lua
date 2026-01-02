@@ -55,16 +55,14 @@ function M.start_server(callback)
 
   -- Send ping to verify server is ready
   if callback then
-    vim.defer_fn(function()
-      M.request('ping', {}, function(err, result)
-        if err then
-          vim.notify('[mdbuf] Server ping failed: ' .. vim.inspect(err), vim.log.levels.ERROR)
-        else
-          vim.notify('[mdbuf] Server ready: ' .. result.version, vim.log.levels.INFO)
-          callback()
-        end
-      end)
-    end, 500)
+    M.request('ping', {}, function(err, result)
+      if err then
+        vim.notify('[mdbuf] Server ping failed: ' .. vim.inspect(err), vim.log.levels.ERROR)
+      else
+        vim.notify('[mdbuf] Server ready: ' .. result.version, vim.log.levels.INFO)
+        callback()
+      end
+    end)
   end
 end
 

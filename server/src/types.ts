@@ -31,6 +31,7 @@ export interface RenderParams {
   options?: {
     css?: string;
     theme?: 'light' | 'dark';
+    sourceMap?: boolean;
   };
 }
 
@@ -54,5 +55,5 @@ export interface PingResponse {
 export interface RpcMethods {
   render: (params: RenderParams) => Promise<RenderResponse>;
   ping: () => PingResponse;
-  shutdown: () => void;
+  shutdown: () => void | Promise<void>;
 }
