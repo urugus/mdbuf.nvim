@@ -105,7 +105,7 @@ function M.on_stdout(data)
 
   -- Try to parse any complete JSON in buffer
   if M.buffer ~= '' then
-    local ok, result = pcall(vim.json.decode, M.buffer)
+    local ok, _ = pcall(vim.json.decode, M.buffer)
     if ok then
       M.process_message(M.buffer)
       M.buffer = ''

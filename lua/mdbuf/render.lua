@@ -24,7 +24,6 @@ function M.render(buf, callback)
 
   -- Get render options
   local opts = config.options.render
-  local preview_opts = config.options.preview
 
   -- Calculate viewport width based on preview window
   local viewport_width = opts.width
