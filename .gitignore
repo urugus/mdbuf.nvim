@@ -1,0 +1,20 @@
+# Dependencies
+server/node_modules/
+
+# Build output
+server/dist/
+
+# Test outputs
+server/*.png
+server/test-*.md
+
+# OS files
+.DS_Store
+
+# Editor
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
