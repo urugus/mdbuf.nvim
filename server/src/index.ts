@@ -1,5 +1,5 @@
 import { closeRenderer, getRenderer } from './renderer.js';
-import { createRpcServer } from './rpc.js';
+import { VERSION, createRpcServer } from './rpc.js';
 
 const main = async (): Promise<void> => {
   // Initialize renderer
@@ -10,7 +10,7 @@ const main = async (): Promise<void> => {
   // Create RPC server
   const server = createRpcServer({
     render: (params) => renderer.render(params),
-    ping: () => ({ status: 'ok', version: '0.1.0' }),
+    ping: () => ({ status: 'ok', version: VERSION }),
     shutdown: async () => {
       await closeRenderer();
       process.exit(0);

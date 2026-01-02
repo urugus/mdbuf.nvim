@@ -55,5 +55,5 @@ export interface PingResponse {
 export interface RpcMethods {
   render: (params: RenderParams) => Promise<RenderResponse>;
   ping: () => PingResponse;
-  shutdown: () => void;
+  shutdown: () => void | Promise<void>;
 }
