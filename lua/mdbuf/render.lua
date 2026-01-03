@@ -33,7 +33,7 @@ function M.render(buf, callback)
     if win then
       -- Calculate pixel width from columns using actual terminal cell size
       local cell_width = terminal.get_cell_width()
-      viewport_width = vim.api.nvim_win_get_width(win) * cell_width
+      viewport_width = math.floor(vim.api.nvim_win_get_width(win) * cell_width)
     end
   end
 

@@ -1,5 +1,16 @@
 -- Tests for mdbuf/terminal.lua
 
+-- Helper to mock require with automatic restore
+local function with_require_mock(mock_fn, test_fn)
+  local original_require = _G.require
+  _G.require = mock_fn
+  local ok, err = pcall(test_fn)
+  _G.require = original_require
+  if not ok then
+    error(err)
+  end
+end
+
 describe('mdbuf.terminal', function()
   local terminal
   local config
@@ -29,6 +40,15 @@ describe('mdbuf.terminal', function()
 
       assert.is_true(size.cell_width > 0, 'cell_width should be positive')
       assert.is_true(size.cell_height > 0, 'cell_height should be positive')
+    end)
+
+    it('should return all size fields', function()
+      local size = terminal.get_size()
+
+      assert.is_number(size.screen_cols)
+      assert.is_number(size.screen_rows)
+      assert.is_true(size.screen_cols > 0)
+      assert.is_true(size.screen_rows > 0)
     end)
   end)
 
@@ -82,6 +102,30 @@ describe('mdbuf.terminal', function()
       -- (e.g., in headless test environment)
       assert.is_number(size.cell_width)
       assert.is_true(size.cell_width > 0)
+    end)
+
+    it('should fallback gracefully when FFI is not available', function()
+      -- Set custom pixels_per_char for verification
+      config.setup({ render = { pixels_per_char = 20 } })
+
+      -- Clear and reload with mocked require that fails for 'ffi'
+      package.loaded['mdbuf.terminal'] = nil
+
+      local original_require = _G.require
+      with_require_mock(function(modname)
+        if modname == 'ffi' then
+          error('module ffi not found')
+        end
+        return original_require(modname)
+      end, function()
+        terminal = original_require('mdbuf.terminal')
+        local size = terminal.get_size()
+
+        -- Should use fallback value from config
+        assert.is_not_nil(size)
+        assert.is_number(size.cell_width)
+        assert.equals(20, size.cell_width)
+      end)
     end)
   end)
 end)

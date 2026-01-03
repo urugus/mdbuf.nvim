@@ -5,6 +5,7 @@ local M = {}
 
 -- Cached terminal size information
 local cached_size = nil
+local autocmd_registered = false
 
 ---Get terminal size using TIOCGWINSZ ioctl
 ---@return table|nil size { screen_x, screen_y, screen_cols, screen_rows, cell_width, cell_height }
@@ -20,6 +21,15 @@ local function query_terminal_size()
     osx = 0x40087468,
   }
 
+  local platform = jit and jit.os:lower() or 'linux'
+
+  -- Windows is not supported for ioctl-based terminal size detection
+  if platform == 'windows' then
+    return nil
+  end
+
+  local constant = TIOCGWINSZ[platform] or TIOCGWINSZ.linux
+
   -- Define winsize struct if not already defined
   pcall(function()
     ffi.cdef([[
@@ -33,11 +43,15 @@ local function query_terminal_size()
     ]])
   end)
 
-  local platform = jit and jit.os:lower() or 'linux'
-  local constant = TIOCGWINSZ[platform] or TIOCGWINSZ.linux
-
   local sz = ffi.new('winsize')
-  local result = ffi.C.ioctl(1, constant, sz) -- stdout = 1
+
+  -- Wrap ioctl call in pcall for safety
+  local ok_ioctl, result = pcall(function()
+    return ffi.C.ioctl(1, constant, sz) -- stdout = 1
+  end)
+  if not ok_ioctl then
+    return nil
+  end
 
   if result == 0 and sz.ws_col > 0 and sz.ws_row > 0 then
     local xpixel = tonumber(sz.ws_xpixel) or 0
@@ -62,8 +76,23 @@ local function query_terminal_size()
   return nil
 end
 
+---Register VimResized autocmd (called lazily)
+local function ensure_autocmd()
+  if autocmd_registered then
+    return
+  end
+  autocmd_registered = true
+
+  vim.api.nvim_create_autocmd('VimResized', {
+    group = vim.api.nvim_create_augroup('mdbuf_terminal', { clear = true }),
+    callback = function()
+      M.update_size()
+    end,
+  })
+end
+
 ---Update cached terminal size
----@return table size { cell_width, cell_height }
+---@return table size { screen_x, screen_y, screen_cols, screen_rows, cell_width, cell_height }
 function M.update_size()
   local size = query_terminal_size()
 
@@ -91,10 +120,11 @@ function M.update_size()
 end
 
 ---Get cached terminal size (updates if not cached)
----@return table size { cell_width, cell_height, ... }
+---@return table size { screen_x, screen_y, screen_cols, screen_rows, cell_width, cell_height }
 function M.get_size()
   if not cached_size then
     M.update_size()
+    ensure_autocmd()
   end
   return cached_size
 end
@@ -112,13 +142,5 @@ function M.get_cell_height()
   local size = M.get_size()
   return size.cell_height
 end
-
--- Auto-update on VimResized
-vim.api.nvim_create_autocmd('VimResized', {
-  group = vim.api.nvim_create_augroup('mdbuf_terminal', { clear = true }),
-  callback = function()
-    M.update_size()
-  end,
-})
 
 return M
