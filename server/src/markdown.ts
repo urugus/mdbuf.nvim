@@ -132,7 +132,7 @@ export const generateHtmlDocument = (
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
       font-size: 16px;
       line-height: 1.6;
-      max-width: ${width}px;
+      width: ${width}px;
       margin: 0;
       padding: 24px;
       color: ${theme === 'dark' ? '#c9d1d9' : '#24292f'};
