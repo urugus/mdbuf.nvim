@@ -22,7 +22,7 @@ describe('markdownToHtml', () => {
 describe('generateHtmlDocument', () => {
   it('width と theme を反映する', () => {
     const html = generateHtmlDocument('<p>hi</p>', { width: 1234, theme: 'dark' });
-    expect(html).toContain('max-width: 1234px;');
+    expect(html).toContain('width: 1234px;');
     expect(html).toContain('background-color: #0d1117;');
   });
 

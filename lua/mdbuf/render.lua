@@ -30,8 +30,9 @@ function M.render(buf, callback)
   if window.is_open() then
     local win = window.get_window()
     if win then
-      -- Approximate pixel width from columns (assuming ~8px per char)
-      viewport_width = vim.api.nvim_win_get_width(win) * 8
+      -- Calculate pixel width from columns using configurable pixels_per_char
+      local ppc = opts.pixels_per_char or 12
+      viewport_width = vim.api.nvim_win_get_width(win) * ppc
     end
   end
 
