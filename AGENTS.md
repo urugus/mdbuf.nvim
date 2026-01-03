@@ -31,13 +31,25 @@ Lua lint (repo root):
 
 ## Testing Guidelines
 
-- There is no unit test suite currently. CI validates:
-  - TypeScript lint (`npm run lint`) and typecheck (`npx tsc --noEmit`).
-  - A render smoke test via the CLI (requires Playwright + Chromium).
-- Local smoke test:
+### TypeScript (server/)
+
+- `npm test`: Run unit tests with Vitest.
+- `npm run lint`: Lint with Biome.
+- `npx tsc --noEmit`: Type check.
+- Render smoke test:
   - `cd server && npx playwright install chromium`
   - `npm run render -- ../README.md /tmp/mdbuf.png`
-  - In Neovim, open a Markdown file and try `:MdbufOpen` / `:MdbufRefresh`.
+
+### Lua (tests/)
+
+- Tests use [plenary.nvim](https://github.com/nvim-lua/plenary.nvim) (busted-style).
+- Test files: `tests/plenary/*_spec.lua`
+- Run tests: `make test` (auto-clones plenary.nvim to `deps/` if needed).
+- Run linter: `make lint`
+
+### Manual smoke test
+
+- In Neovim, open a Markdown file and try `:MdbufOpen` / `:MdbufRefresh`.
 
 ## Commit & Pull Request Guidelines
 

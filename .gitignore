@@ -1,5 +1,6 @@
 # Dependencies
 server/node_modules/
+deps/
 
 # Build output
 server/dist/

@@ -17,3 +17,18 @@ ignore = {
 
 -- Max line length
 max_line_length = 120
+
+-- Test-specific configuration
+files["tests/**/*.lua"] = {
+  globals = {
+    "describe",
+    "it",
+    "before_each",
+    "after_each",
+    "assert",
+  },
+  -- Allow modifying read-only globals for mocking in tests
+  ignore = {
+    "122", -- Setting read-only global variable (for mocking)
+  },
+}
