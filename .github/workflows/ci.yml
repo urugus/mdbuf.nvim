@@ -109,6 +109,21 @@ jobs:
       - name: Run luacheck
         run: luacheck lua/ --globals vim
 
+  test-lua:
+    name: Test Lua
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: v0.10.0
+
+      - name: Run Lua tests
+        run: make test
+
   test-render:
     name: Test Render
     runs-on: ubuntu-slim
