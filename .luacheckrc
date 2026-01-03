@@ -7,6 +7,7 @@ globals = {
 
 read_globals = {
   "vim",
+  "jit", -- LuaJIT global for platform detection
 }
 
 -- Ignore some warnings

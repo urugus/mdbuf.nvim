@@ -3,6 +3,7 @@
 local config = require('mdbuf.config')
 local rpc = require('mdbuf.rpc')
 local window = require('mdbuf.window')
+local terminal = require('mdbuf.terminal')
 
 local M = {}
 
@@ -30,9 +31,9 @@ function M.render(buf, callback)
   if window.is_open() then
     local win = window.get_window()
     if win then
-      -- Calculate pixel width from columns using configurable pixels_per_char
-      local ppc = opts.pixels_per_char or 12
-      viewport_width = vim.api.nvim_win_get_width(win) * ppc
+      -- Calculate pixel width from columns using actual terminal cell size
+      local cell_width = terminal.get_cell_width()
+      viewport_width = vim.api.nvim_win_get_width(win) * cell_width
     end
   end
 
