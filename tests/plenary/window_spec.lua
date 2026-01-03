@@ -1,4 +1,53 @@
 -- Tests for mdbuf/window.lua
+
+-- Helper to mock vim.api/vim.fn functions with automatic restore
+local function with_mocks(mocks, fn)
+  local originals = {}
+  -- Store originals and apply mocks
+  for key, mock_fn in pairs(mocks) do
+    if key:match('^api%.') then
+      local api_key = key:gsub('^api%.', '')
+      originals[key] = vim.api[api_key]
+      vim.api[api_key] = mock_fn
+    elseif key:match('^fn%.') then
+      local fn_key = key:gsub('^fn%.', '')
+      originals[key] = vim.fn[fn_key]
+      vim.fn[fn_key] = mock_fn
+    elseif key == 'notify' then
+      originals[key] = vim.notify
+      vim.notify = mock_fn
+    elseif key == 'cmd' then
+      originals[key] = vim.cmd
+      vim.cmd = mock_fn
+    elseif key == 'require' then
+      originals[key] = _G.require
+      _G.require = mock_fn
+    end
+  end
+  -- Run test function
+  local ok, err = pcall(fn)
+  -- Restore originals
+  for key, original in pairs(originals) do
+    if key:match('^api%.') then
+      local api_key = key:gsub('^api%.', '')
+      vim.api[api_key] = original
+    elseif key:match('^fn%.') then
+      local fn_key = key:gsub('^fn%.', '')
+      vim.fn[fn_key] = original
+    elseif key == 'notify' then
+      vim.notify = original
+    elseif key == 'cmd' then
+      vim.cmd = original
+    elseif key == 'require' then
+      _G.require = original
+    end
+  end
+  -- Re-raise error if test failed
+  if not ok then
+    error(err)
+  end
+end
+
 describe('mdbuf.window', function()
   local window
   local config
@@ -27,35 +76,32 @@ describe('mdbuf.window', function()
 
     it('should return false when window is invalid', function()
       window.preview_win = 999 -- Non-existent window
-
-      -- Mock nvim_win_is_valid to return false
       local checked_win = nil
-      local original_is_valid = vim.api.nvim_win_is_valid
-      vim.api.nvim_win_is_valid = function(win)
-        checked_win = win
-        return false
-      end
 
-      assert.is_false(window.is_open())
-      assert.equals(999, checked_win)
-
-      vim.api.nvim_win_is_valid = original_is_valid
+      with_mocks({
+        ['api.nvim_win_is_valid'] = function(win)
+          checked_win = win
+          return false
+        end,
+      }, function()
+        assert.is_false(window.is_open())
+        assert.equals(999, checked_win)
+      end)
     end)
 
     it('should return true when window is valid', function()
       window.preview_win = 1
-
       local checked_win = nil
-      local original_is_valid = vim.api.nvim_win_is_valid
-      vim.api.nvim_win_is_valid = function(win)
-        checked_win = win
-        return true
-      end
 
-      assert.is_true(window.is_open())
-      assert.equals(1, checked_win)
-
-      vim.api.nvim_win_is_valid = original_is_valid
+      with_mocks({
+        ['api.nvim_win_is_valid'] = function(win)
+          checked_win = win
+          return true
+        end,
+      }, function()
+        assert.is_true(window.is_open())
+        assert.equals(1, checked_win)
+      end)
     end)
   end)
 
@@ -90,21 +136,17 @@ describe('mdbuf.window', function()
       window.source_buf = 3
       window.source_map = { lineToY = {} }
 
-      -- Mock nvim_win_is_valid and nvim_win_close
-      local original_is_valid = vim.api.nvim_win_is_valid
-      local original_close = vim.api.nvim_win_close
-      vim.api.nvim_win_is_valid = function() return true end
-      vim.api.nvim_win_close = function() end
+      with_mocks({
+        ['api.nvim_win_is_valid'] = function() return true end,
+        ['api.nvim_win_close'] = function() end,
+      }, function()
+        window.close()
 
-      window.close()
-
-      assert.is_nil(window.preview_win)
-      assert.is_nil(window.preview_buf)
-      assert.is_nil(window.source_buf)
-      assert.is_nil(window.source_map)
-
-      vim.api.nvim_win_is_valid = original_is_valid
-      vim.api.nvim_win_close = original_close
+        assert.is_nil(window.preview_win)
+        assert.is_nil(window.preview_buf)
+        assert.is_nil(window.source_buf)
+        assert.is_nil(window.source_map)
+      end)
     end)
 
     it('should handle already closed window', function()
@@ -130,18 +172,14 @@ describe('mdbuf.window', function()
       window.preview_buf = 1
       window.source_map = nil
 
-      -- Mock validity checks
-      local original_win_is_valid = vim.api.nvim_win_is_valid
-      local original_buf_is_valid = vim.api.nvim_buf_is_valid
-      vim.api.nvim_win_is_valid = function() return true end
-      vim.api.nvim_buf_is_valid = function() return true end
-
-      assert.has_no.errors(function()
-        window.sync_scroll(10)
+      with_mocks({
+        ['api.nvim_win_is_valid'] = function() return true end,
+        ['api.nvim_buf_is_valid'] = function() return true end,
+      }, function()
+        assert.has_no.errors(function()
+          window.sync_scroll(10)
+        end)
       end)
-
-      vim.api.nvim_win_is_valid = original_win_is_valid
-      vim.api.nvim_buf_is_valid = original_buf_is_valid
     end)
 
     it('should find nearest mapped line', function()
@@ -157,83 +195,65 @@ describe('mdbuf.window', function()
         totalHeight = 500,
       }
 
-      -- Mock functions
       local cursor_set = nil
-      local original_win_is_valid = vim.api.nvim_win_is_valid
-      local original_buf_is_valid = vim.api.nvim_buf_is_valid
-      local original_win_get_height = vim.api.nvim_win_get_height
-      local original_buf_line_count = vim.api.nvim_buf_line_count
-      local original_win_set_cursor = vim.api.nvim_win_set_cursor
 
-      vim.api.nvim_win_is_valid = function() return true end
-      vim.api.nvim_buf_is_valid = function() return true end
-      vim.api.nvim_win_get_height = function() return 24 end
-      vim.api.nvim_buf_line_count = function() return 100 end
-      vim.api.nvim_win_set_cursor = function(win, pos)
-        cursor_set = pos
-      end
+      with_mocks({
+        ['api.nvim_win_is_valid'] = function() return true end,
+        ['api.nvim_buf_is_valid'] = function() return true end,
+        ['api.nvim_win_get_height'] = function() return 24 end,
+        ['api.nvim_buf_line_count'] = function() return 100 end,
+        ['api.nvim_win_set_cursor'] = function(win, pos)
+          cursor_set = pos
+        end,
+      }, function()
+        -- Scroll to line 7 - should find nearest (line 5 at Y=100)
+        window.sync_scroll(7)
 
-      -- Scroll to line 7 - should find nearest (line 5 at Y=100)
-      window.sync_scroll(7)
-
-      assert.is_not_nil(cursor_set)
-      -- Y=100, totalHeight=500, bufLines=100 -> ratio=0.2, line=20
-      -- The exact value depends on implementation, but should be a reasonable line number
-      assert.is_number(cursor_set[1])
-      assert.is_true(cursor_set[1] >= 1 and cursor_set[1] <= 100, 'cursor line should be within buffer bounds')
-
-      vim.api.nvim_win_is_valid = original_win_is_valid
-      vim.api.nvim_buf_is_valid = original_buf_is_valid
-      vim.api.nvim_win_get_height = original_win_get_height
-      vim.api.nvim_buf_line_count = original_buf_line_count
-      vim.api.nvim_win_set_cursor = original_win_set_cursor
+        assert.is_not_nil(cursor_set)
+        -- Y=100, totalHeight=500, bufLines=100 -> ratio=0.2, line=20
+        -- The exact value depends on implementation, but should be a reasonable line number
+        assert.is_number(cursor_set[1])
+        assert.is_true(cursor_set[1] >= 1 and cursor_set[1] <= 100, 'cursor line should be within buffer bounds')
+      end)
     end)
   end)
 
   describe('update_image', function()
     it('should handle missing preview buffer', function()
       window.preview_buf = nil
-
-      -- Capture notifications
       local notifications = {}
-      local original_notify = vim.notify
-      vim.notify = function(msg, level)
-        table.insert(notifications, { msg = msg, level = level })
-      end
 
-      window.update_image('/tmp/test.png', {})
+      with_mocks({
+        notify = function(msg, level)
+          table.insert(notifications, { msg = msg, level = level })
+        end,
+      }, function()
+        window.update_image('/tmp/test.png', {})
 
-      assert.is_true(#notifications > 0)
-      assert.truthy(notifications[1].msg:match('not valid'))
-
-      vim.notify = original_notify
+        assert.is_true(#notifications > 0)
+        assert.truthy(notifications[1].msg:match('not valid'))
+      end)
     end)
 
     it('should store source_map', function()
       window.preview_buf = 1
-
-      local original_buf_is_valid = vim.api.nvim_buf_is_valid
-      local original_buf_set_lines = vim.api.nvim_buf_set_lines
-      vim.api.nvim_buf_is_valid = function() return true end
-      vim.api.nvim_buf_set_lines = function() end
-
-      -- Mock require to simulate image.nvim not being available
       local original_require = require
-      _G.require = function(modname)
-        if modname == 'image' then
-          error('module not found')
-        end
-        return original_require(modname)
-      end
 
-      local test_map = { lineToY = { ['1'] = 0 }, totalHeight = 100 }
-      window.update_image('/tmp/test.png', test_map)
+      with_mocks({
+        ['api.nvim_buf_is_valid'] = function() return true end,
+        ['api.nvim_buf_set_lines'] = function() end,
+        require = function(modname)
+          if modname == 'image' then
+            error('module not found')
+          end
+          return original_require(modname)
+        end,
+      }, function()
+        local test_map = { lineToY = { ['1'] = 0 }, totalHeight = 100 }
+        window.update_image('/tmp/test.png', test_map)
 
-      assert.same(test_map, window.source_map)
-
-      _G.require = original_require
-      vim.api.nvim_buf_is_valid = original_buf_is_valid
-      vim.api.nvim_buf_set_lines = original_buf_set_lines
+        assert.same(test_map, window.source_map)
+      end)
     end)
   end)
 
