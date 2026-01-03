@@ -12,11 +12,23 @@ local plugin_paths = {
   vim.fn.getcwd() .. '/deps/plenary.nvim',
 }
 
+local plenary_found = false
 for _, path in ipairs(plugin_paths) do
   if vim.loop.fs_stat(path) then
     vim.opt.rtp:prepend(path)
+    plenary_found = true
     break
   end
+end
+
+if not plenary_found then
+  local msg = 'plenary.nvim not found. Install it via:\n'
+    .. '  - make deps (recommended for testing)\n'
+    .. '  - lazy.nvim: { "nvim-lua/plenary.nvim" }\n'
+    .. '  - packer.nvim: use "nvim-lua/plenary.nvim"\n\n'
+    .. 'Searched paths:\n  ' .. table.concat(plugin_paths, '\n  ')
+  vim.api.nvim_err_writeln(msg)
+  vim.cmd('cquit 1')
 end
 
 -- Add the plugin itself to runtimepath

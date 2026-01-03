@@ -167,8 +167,10 @@ describe('mdbuf.rpc', function()
 
       -- Mock chansend
       local sent_data = {}
+      local sent_ids = {}
       local original_chansend = vim.fn.chansend
       vim.fn.chansend = function(id, data)
+        table.insert(sent_ids, id)
         table.insert(sent_data, data)
         return #data
       end
@@ -179,6 +181,9 @@ describe('mdbuf.rpc', function()
       -- Should have incremented IDs
       assert.truthy(sent_data[1]:match('"id":1'))
       assert.truthy(sent_data[2]:match('"id":2'))
+      -- Verify chansend was called with correct job_id
+      assert.equals(1, sent_ids[1])
+      assert.equals(1, sent_ids[2])
 
       vim.fn.chansend = original_chansend
     end)
@@ -186,13 +191,18 @@ describe('mdbuf.rpc', function()
     it('should register pending callback', function()
       rpc.job_id = 1
 
+      local sent_id = nil
       local original_chansend = vim.fn.chansend
-      vim.fn.chansend = function() return 1 end
+      vim.fn.chansend = function(id, data)
+        sent_id = id
+        return 1
+      end
 
       local callback = function() end
       rpc.request('test', {}, callback)
 
       assert.equals(callback, rpc.pending_requests[1])
+      assert.equals(1, sent_id)
 
       vim.fn.chansend = original_chansend
     end)
@@ -201,13 +211,18 @@ describe('mdbuf.rpc', function()
       rpc.job_id = 1
 
       local sent_json = nil
+      local sent_id = nil
       local original_chansend = vim.fn.chansend
       vim.fn.chansend = function(id, data)
+        sent_id = id
         sent_json = data
         return #data
       end
 
       rpc.request('render', { markdown = '# Test' }, function() end)
+
+      -- Verify chansend was called with correct job_id
+      assert.equals(1, sent_id)
 
       -- Parse the sent JSON (strip newline)
       local json_str = sent_json:gsub('\n$', '')
@@ -234,8 +249,10 @@ describe('mdbuf.rpc', function()
       rpc.job_id = 1
 
       local shutdown_sent = false
+      local sent_id = nil
       local original_chansend = vim.fn.chansend
       vim.fn.chansend = function(id, data)
+        sent_id = id
         if data:match('"method":"shutdown"') then
           shutdown_sent = true
         end
@@ -245,6 +262,7 @@ describe('mdbuf.rpc', function()
       rpc.stop_server()
 
       assert.is_true(shutdown_sent)
+      assert.equals(1, sent_id)
 
       vim.fn.chansend = original_chansend
     end)

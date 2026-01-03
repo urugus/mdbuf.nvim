@@ -29,12 +29,15 @@ describe('mdbuf.window', function()
       window.preview_win = 999 -- Non-existent window
 
       -- Mock nvim_win_is_valid to return false
+      local checked_win = nil
       local original_is_valid = vim.api.nvim_win_is_valid
       vim.api.nvim_win_is_valid = function(win)
+        checked_win = win
         return false
       end
 
       assert.is_false(window.is_open())
+      assert.equals(999, checked_win)
 
       vim.api.nvim_win_is_valid = original_is_valid
     end)
@@ -42,12 +45,15 @@ describe('mdbuf.window', function()
     it('should return true when window is valid', function()
       window.preview_win = 1
 
+      local checked_win = nil
       local original_is_valid = vim.api.nvim_win_is_valid
       vim.api.nvim_win_is_valid = function(win)
+        checked_win = win
         return true
       end
 
       assert.is_true(window.is_open())
+      assert.equals(1, checked_win)
 
       vim.api.nvim_win_is_valid = original_is_valid
     end)
@@ -171,8 +177,10 @@ describe('mdbuf.window', function()
       window.sync_scroll(7)
 
       assert.is_not_nil(cursor_set)
-      -- Y=100, totalHeight=500, winHeight=24 -> ratio=0.2, line=4.8 -> 4
+      -- Y=100, totalHeight=500, bufLines=100 -> ratio=0.2, line=20
+      -- The exact value depends on implementation, but should be a reasonable line number
       assert.is_number(cursor_set[1])
+      assert.is_true(cursor_set[1] >= 1 and cursor_set[1] <= 100, 'cursor line should be within buffer bounds')
 
       vim.api.nvim_win_is_valid = original_win_is_valid
       vim.api.nvim_buf_is_valid = original_buf_is_valid
@@ -209,16 +217,13 @@ describe('mdbuf.window', function()
       vim.api.nvim_buf_is_valid = function() return true end
       vim.api.nvim_buf_set_lines = function() end
 
-      -- Mock pcall for image.nvim check
-      local original_pcall = pcall
-      _G.pcall = function(fn, ...)
-        if type(fn) == 'function' then
-          local args = { ... }
-          if args[1] == 'image' then
-            return false, 'not found'
-          end
+      -- Mock require to simulate image.nvim not being available
+      local original_require = require
+      _G.require = function(modname)
+        if modname == 'image' then
+          error('module not found')
         end
-        return original_pcall(fn, ...)
+        return original_require(modname)
       end
 
       local test_map = { lineToY = { ['1'] = 0 }, totalHeight = 100 }
@@ -226,7 +231,7 @@ describe('mdbuf.window', function()
 
       assert.same(test_map, window.source_map)
 
-      _G.pcall = original_pcall
+      _G.require = original_require
       vim.api.nvim_buf_is_valid = original_buf_is_valid
       vim.api.nvim_buf_set_lines = original_buf_set_lines
     end)

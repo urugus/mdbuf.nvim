@@ -253,32 +253,165 @@ M.json = {
     return 'null'
   end,
   decode = function(str)
-    -- Use Lua pattern matching for basic JSON decoding
-    -- This is a simplified decoder for testing purposes
-    str = str:match('^%s*(.-)%s*$') -- trim whitespace
-    if str == 'null' then
-      return nil
-    elseif str == 'true' then
-      return true
-    elseif str == 'false' then
-      return false
-    elseif str:match('^%-?%d+%.?%d*$') then
-      return tonumber(str)
-    elseif str:match('^".-"$') then
-      return str:sub(2, -2):gsub('\\n', '\n'):gsub('\\"', '"'):gsub('\\\\', '\\')
-    else
-      -- For complex objects, we need a proper parser
-      -- For tests, use loadstring if available
-      local func = loadstring or load
-      local f = func('return ' .. str:gsub('null', 'nil'):gsub('true', 'true'):gsub('false', 'false'))
-      if f then
-        local ok, result = pcall(f)
-        if ok then
-          return result
+    -- Safe JSON decoder using pattern matching (no loadstring/load)
+    local function skip_ws(s, i)
+      local _, j = s:find('^%s*', i)
+      return (j or i - 1) + 1
+    end
+
+    local function parse_string(s, i)
+      i = i + 1
+      local res = {}
+      local len = #s
+      while i <= len do
+        local c = s:sub(i, i)
+        if c == '"' then
+          return table.concat(res), i + 1
+        elseif c == '\\' then
+          local nextc = s:sub(i + 1, i + 1)
+          if nextc == 'n' then
+            table.insert(res, '\n')
+          elseif nextc == '"' then
+            table.insert(res, '"')
+          elseif nextc == '\\' then
+            table.insert(res, '\\')
+          elseif nextc == 't' then
+            table.insert(res, '\t')
+          elseif nextc == 'r' then
+            table.insert(res, '\r')
+          else
+            table.insert(res, nextc)
+          end
+          i = i + 2
+        else
+          table.insert(res, c)
+          i = i + 1
         end
       end
-      error('Invalid JSON: ' .. str)
+      error('Invalid JSON string: ' .. s)
     end
+
+    local function parse_number(s, i)
+      local start_i = i
+      local len = #s
+      if s:sub(i, i) == '-' then
+        i = i + 1
+      end
+      while i <= len and s:sub(i, i):match('%d') do
+        i = i + 1
+      end
+      if i <= len and s:sub(i, i) == '.' then
+        i = i + 1
+        while i <= len and s:sub(i, i):match('%d') do
+          i = i + 1
+        end
+      end
+      if i <= len and s:sub(i, i):lower() == 'e' then
+        i = i + 1
+        if s:sub(i, i) == '+' or s:sub(i, i) == '-' then
+          i = i + 1
+        end
+        while i <= len and s:sub(i, i):match('%d') do
+          i = i + 1
+        end
+      end
+      local n = tonumber(s:sub(start_i, i - 1))
+      if n == nil then
+        error('Invalid JSON number: ' .. s:sub(start_i, i - 1))
+      end
+      return n, i
+    end
+
+    local parse_value
+
+    local function parse_array(s, i)
+      i = i + 1
+      local res = {}
+      i = skip_ws(s, i)
+      if s:sub(i, i) == ']' then
+        return res, i + 1
+      end
+      while true do
+        local val
+        val, i = parse_value(s, i)
+        table.insert(res, val)
+        i = skip_ws(s, i)
+        local c = s:sub(i, i)
+        if c == ']' then
+          return res, i + 1
+        elseif c == ',' then
+          i = skip_ws(s, i + 1)
+        else
+          error('Invalid JSON array')
+        end
+      end
+    end
+
+    local function parse_object(s, i)
+      i = i + 1
+      local res = {}
+      i = skip_ws(s, i)
+      if s:sub(i, i) == '}' then
+        return res, i + 1
+      end
+      while true do
+        i = skip_ws(s, i)
+        if s:sub(i, i) ~= '"' then
+          error('Invalid JSON object key')
+        end
+        local key
+        key, i = parse_string(s, i)
+        i = skip_ws(s, i)
+        if s:sub(i, i) ~= ':' then
+          error('Invalid JSON object')
+        end
+        i = skip_ws(s, i + 1)
+        local val
+        val, i = parse_value(s, i)
+        res[key] = val
+        i = skip_ws(s, i)
+        local c = s:sub(i, i)
+        if c == '}' then
+          return res, i + 1
+        elseif c == ',' then
+          i = skip_ws(s, i + 1)
+        else
+          error('Invalid JSON object')
+        end
+      end
+    end
+
+    parse_value = function(s, i)
+      i = skip_ws(s, i)
+      local c = s:sub(i, i)
+      if c == '' then
+        error('Invalid JSON: unexpected end')
+      elseif c == 'n' and s:sub(i, i + 3) == 'null' then
+        return nil, i + 4
+      elseif c == 't' and s:sub(i, i + 3) == 'true' then
+        return true, i + 4
+      elseif c == 'f' and s:sub(i, i + 4) == 'false' then
+        return false, i + 5
+      elseif c == '"' then
+        return parse_string(s, i)
+      elseif c == '[' then
+        return parse_array(s, i)
+      elseif c == '{' then
+        return parse_object(s, i)
+      elseif c == '-' or c:match('%d') then
+        return parse_number(s, i)
+      else
+        error('Invalid JSON: unexpected character: ' .. c)
+      end
+    end
+
+    str = str:match('^%s*(.-)%s*$')
+    local result, pos = parse_value(str, 1)
+    pos = skip_ws(str, pos)
+    if pos <= #str then
+      error('Invalid JSON: trailing content')
+    end
+    return result
   end,
 }
 

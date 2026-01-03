@@ -26,9 +26,7 @@ files["tests/**/*.lua"] = {
     "before_each",
     "after_each",
     "assert",
-  },
-  -- Allow modifying read-only globals for mocking in tests
-  ignore = {
-    "122", -- Setting read-only global variable (for mocking)
+    "vim", -- Allow modifying vim for mocking in tests
+    "debug", -- Allow modifying debug.getinfo for path mocking
   },
 }
