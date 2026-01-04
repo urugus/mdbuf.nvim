@@ -71,6 +71,7 @@ require('mdbuf').setup({
   render = {
     theme = 'light',    -- 'light' or 'dark'
     width = 800,        -- Render width in pixels
+    pixels_per_char = 12, -- Fallback pixels/column when terminal doesn't report pixel size
     custom_css = nil,   -- Path to custom CSS file
   },
 

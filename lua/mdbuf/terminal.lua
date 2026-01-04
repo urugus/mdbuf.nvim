@@ -45,10 +45,21 @@ local function query_terminal_size()
 
   local sz = ffi.new('mdbuf_winsize')
 
-  -- Wrap ioctl call in pcall for safety
-  local ok_ioctl, result = pcall(function()
-    return ffi.C.ioctl(1, constant, sz) -- stdout = 1
-  end)
+  -- Try common TTY fds. In some environments Neovim's stdout isn't a TTY
+  -- but stdin/stderr are (or vice versa).
+  local tried_fds = { 1, 0, 2 } -- stdout, stdin, stderr
+  local result = nil
+  local ok_ioctl = false
+
+  for _, fd in ipairs(tried_fds) do
+    ok_ioctl, result = pcall(function()
+      return ffi.C.ioctl(fd, constant, sz)
+    end)
+    if ok_ioctl and result == 0 and sz.ws_col > 0 and sz.ws_row > 0 then
+      break
+    end
+  end
+
   if not ok_ioctl then
     return nil
   end
