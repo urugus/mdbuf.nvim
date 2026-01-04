@@ -21,7 +21,7 @@ local function query_terminal_size()
     osx = 0x40087468,
   }
 
-  local platform = jit and jit.os:lower() or 'linux'
+  local platform = ((jit and jit.os) or 'linux'):lower()
 
   -- Windows is not supported for ioctl-based terminal size detection
   if platform == 'windows' then
