@@ -45,35 +45,42 @@ local function query_terminal_size()
 
   local sz = ffi.new('mdbuf_winsize')
 
-  -- Wrap ioctl call in pcall for safety
-  local ok_ioctl, result = pcall(function()
-    return ffi.C.ioctl(1, constant, sz) -- stdout = 1
-  end)
-  if not ok_ioctl then
+  -- Try common TTY fds. In some environments Neovim's stdout isn't a TTY
+  -- but stdin/stderr are (or vice versa).
+  local fds_to_try = { 1, 0, 2 } -- stdout, stdin, stderr
+  local result = nil
+  local ok_ioctl = false
+
+  for _, fd in ipairs(fds_to_try) do
+    ok_ioctl, result = pcall(function()
+      return ffi.C.ioctl(fd, constant, sz)
+    end)
+    if ok_ioctl and result == 0 and sz.ws_col > 0 and sz.ws_row > 0 then
+      break
+    end
+  end
+
+  if not ok_ioctl or result ~= 0 or sz.ws_col <= 0 or sz.ws_row <= 0 then
     return nil
   end
 
-  if result == 0 and sz.ws_col > 0 and sz.ws_row > 0 then
-    local xpixel = tonumber(sz.ws_xpixel) or 0
-    local ypixel = tonumber(sz.ws_ypixel) or 0
-    local cols = tonumber(sz.ws_col)
-    local rows = tonumber(sz.ws_row)
+  local xpixel = tonumber(sz.ws_xpixel) or 0
+  local ypixel = tonumber(sz.ws_ypixel) or 0
+  local cols = tonumber(sz.ws_col)
+  local rows = tonumber(sz.ws_row)
 
-    -- Calculate cell size (some terminals may not report pixel size)
-    local cell_width = xpixel > 0 and (xpixel / cols) or nil
-    local cell_height = ypixel > 0 and (ypixel / rows) or nil
+  -- Calculate cell size (some terminals may not report pixel size)
+  local cell_width = xpixel > 0 and (xpixel / cols) or nil
+  local cell_height = ypixel > 0 and (ypixel / rows) or nil
 
-    return {
-      screen_x = xpixel,
-      screen_y = ypixel,
-      screen_cols = cols,
-      screen_rows = rows,
-      cell_width = cell_width,
-      cell_height = cell_height,
-    }
-  end
-
-  return nil
+  return {
+    screen_x = xpixel,
+    screen_y = ypixel,
+    screen_cols = cols,
+    screen_rows = rows,
+    cell_width = cell_width,
+    cell_height = cell_height,
+  }
 end
 
 ---Register VimResized autocmd (called lazily)
