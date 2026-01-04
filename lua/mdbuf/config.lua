@@ -10,7 +10,7 @@
 ---@class MdbufRenderConfig
 ---@field theme "light"|"dark" Color theme
 ---@field width number Render width in pixels
----@field pixels_per_char number Pixels per character for viewport calculation
+---@field pixels_per_char number Fallback pixels per character (used when terminal size detection fails)
 ---@field custom_css? string Path to custom CSS file
 
 ---@class MdbufBehaviorConfig
