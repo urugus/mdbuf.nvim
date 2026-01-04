@@ -38,12 +38,12 @@ local function query_terminal_size()
         unsigned short ws_col;
         unsigned short ws_xpixel;
         unsigned short ws_ypixel;
-      } winsize;
+      } mdbuf_winsize;
       int ioctl(int fd, unsigned long request, ...);
     ]])
   end)
 
-  local sz = ffi.new('winsize')
+  local sz = ffi.new('mdbuf_winsize')
 
   -- Wrap ioctl call in pcall for safety
   local ok_ioctl, result = pcall(function()
